@@ -133,9 +133,6 @@ class GattServerEventHandler : public GattServerEvents
 /**************************************************************************/
 int main(void)
 {
-    *(uint32_t *)0x40000504 = 0xC007FFDF;
-    *(uint32_t *)0x40006C18 = 0x00008000;
-
     /* Setup blinky: led1 is toggled in main, led2 is toggled via Ticker */
     led1 = 1;
     led2 = 1;
