@@ -111,14 +111,14 @@ class GattServerEventHandler : public GattServerEvents
 
     virtual void onUpdatesEnabled(uint16_t charHandle)
     {
-        if (charHandle == hrmRate.handle) {
+        if (charHandle == hrmRate.getHandle()) {
             pc.printf("Heart rate notify enabled\n\r");
         }
     }
 
     virtual void onUpdatesDisabled(uint16_t charHandle)
     {
-        if (charHandle == hrmRate.handle) {
+        if (charHandle == hrmRate.getHandle()) {
             pc.printf("Heart rate notify disabled\n\r");
         }
     }
@@ -181,9 +181,9 @@ int main(void)
 
     /* Now that we're live, update the battery level characteristic, and */
     /* change the device manufacturer characteristic to 'mbed' */
-    nrf.getGattServer().updateValue(battLevel.handle, (uint8_t *)&batt,
+    nrf.getGattServer().updateValue(battLevel.getHandle(), (uint8_t *)&batt,
                                     sizeof(batt));
-    nrf.getGattServer().updateValue(deviceManufacturer.handle,
+    nrf.getGattServer().updateValue(deviceManufacturer.getHandle(),
                                     deviceName,
                                     sizeof(deviceName));
 
@@ -191,7 +191,7 @@ int main(void)
     /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.body_sensor_location.xml */
     uint8_t location = 0x03; /* Finger */
     uint8_t hrmCounter = 100;
-    nrf.getGattServer().updateValue(hrmLocation.handle,
+    nrf.getGattServer().updateValue(hrmLocation.getHandle(),
                                     (uint8_t *)&location,
                                     sizeof(location));
 
@@ -205,7 +205,7 @@ int main(void)
         if (batt > 100) {
             batt = 72;
         }
-        nrf.getGattServer().updateValue(battLevel.handle,
+        nrf.getGattServer().updateValue(battLevel.getHandle(),
                                         (uint8_t *)&batt,
                                         sizeof(batt));
 
@@ -217,7 +217,7 @@ int main(void)
             hrmCounter = 100;
         }
         uint8_t bpm[2] = {0x00, hrmCounter};
-        nrf.getGattServer().updateValue(hrmRate.handle, bpm, sizeof(bpm));
+        nrf.getGattServer().updateValue(hrmRate.getHandle(), bpm, sizeof(bpm));
     }
 }
 
