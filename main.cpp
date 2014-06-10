@@ -20,8 +20,6 @@
 BLEPeripheral  ble;                 /* BLE radio driver */
 
 DigitalOut led1(LED1);
-DigitalOut led2(LED2);
-Ticker     flipper;
 Serial     pc(USBTX, USBRX);
 
 /* Battery Level Service */
@@ -48,7 +46,7 @@ GattCharacteristic hrmLocation   (GattCharacteristic::UUID_BODY_SENSOR_LOCATION_
                                   GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 
 /* Device Information service */
-uint8_t deviceName[4] = {'m', 'b', 'e', 'd'};
+static const uint8_t deviceName[] = {'m', 'b', 'e', 'd'};
 GattService        deviceInformationService (GattService::UUID_DEVICE_INFORMATION_SERVICE);
 GattCharacteristic deviceManufacturer (
     GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR,
@@ -61,8 +59,6 @@ static const uint16_t uuid16_list[] = {
     GattService::UUID_DEVICE_INFORMATION_SERVICE,
     GattService::UUID_HEART_RATE_SERVICE
 };
-
-void tickerCallback(void);
 
 void timeoutCallback(void)
 {
@@ -104,10 +100,7 @@ void updatesDisabledCallback(uint16_t charHandle)
 /**************************************************************************/
 int main(void)
 {
-    /* Setup blinky: led1 is toggled in main, led2 is toggled via Ticker */
     led1 = 1;
-    led2 = 1;
-    flipper.attach(&tickerCallback, 1.0);
 
     /* Setup the local GAP/GATT event handlers */
     ble.onTimeout(timeoutCallback);
@@ -183,14 +176,4 @@ int main(void)
         uint8_t bpm[2] = {0x00, hrmCounter};
         ble.updateCharacteristicValue(hrmRate.getHandle(), bpm, sizeof(bpm));
     }
-}
-
-/**************************************************************************/
-/*!
-    @brief  Ticker callback to switch led2 state
-*/
-/**************************************************************************/
-void tickerCallback(void)
-{
-    led2 = !led2;
 }
