@@ -103,6 +103,31 @@ void updatesDisabledCallback(uint16_t charHandle)
     }
 }
 
+void periodicCallback(void)
+{
+    led1 = !led1; /* Do blinky on LED1 while we're waiting for BLE events */
+
+    if (ble.getGapState().connected) {
+        /* Update battery level */
+        batt++;
+        if (batt > 100) {
+            batt = 72;
+        }
+        ble.updateCharacteristicValue(battLevel.getHandle(), (uint8_t *)&batt, sizeof(batt));
+
+        /* Update the HRM measurement */
+        /* First byte = 8-bit values, no extra info, Second byte = uint8_t HRM value */
+        /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
+        static uint8_t hrmCounter = 100;
+        hrmCounter++;
+        if (hrmCounter == 175) {
+            hrmCounter = 100;
+        }
+        uint8_t bpm[2] = {0x00, hrmCounter};
+        ble.updateCharacteristicValue(hrmRate.getHandle(), bpm, sizeof(bpm));
+    }
+}
+
 /**************************************************************************/
 /*!
     @brief  Program entry point
@@ -111,6 +136,8 @@ void updatesDisabledCallback(uint16_t charHandle)
 int main(void)
 {
     led1 = 1;
+    Ticker ticker;
+    ticker.attach(periodicCallback, 1);
 
     /* Setup the local GAP/GATT event handlers */
     ble.onTimeout(timeoutCallback);
@@ -123,65 +150,34 @@ int main(void)
     DEBUG("Initialising the nRF51822\n\r");
     ble.init();
 
-    /* Add BLE-Only flag and complete service list to the advertising data */
     ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED);
     ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t *)uuid16_list, sizeof(uuid16_list));
     ble.accumulateAdvertisingPayload(GapAdvertisingData::HEART_RATE_SENSOR_HEART_RATE_BELT);
-
-    /* Add the Battery Level service */
-    battService.addCharacteristic(battLevel);
-    ble.addService(battService);
-
-    /* Add the Device Information service */
-    deviceInformationService.addCharacteristic(deviceManufacturer);
-    ble.addService(deviceInformationService);
-
-    /* Add the Heart Rate service */
-    hrmService.addCharacteristic(hrmRate);
-    hrmService.addCharacteristic(hrmLocation);
-    ble.addService(hrmService);
 
     ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
     ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
     ble.startAdvertising();
 
-    /* Wait until we are connected to a central device before updating anything */
-    DEBUG("Waiting for a connection ...");
-    while (!ble.getGapState().connected) {
-        ble.waitForEvent();
-    }
-
-    /* Now that we're live, update the battery level characteristic, and
-     * change the device manufacturer characteristic to 'mbed' */
-    ble.updateCharacteristicValue(battLevel.getHandle(), (uint8_t *)&batt, sizeof(batt));
+    /* Add the Device Information service */
+    deviceInformationService.addCharacteristic(deviceManufacturer);
+    ble.addService(deviceInformationService);
     ble.updateCharacteristicValue(deviceManufacturer.getHandle(), deviceName, sizeof(deviceName));
 
+    /* Add the Battery Level service */
+    battService.addCharacteristic(battLevel);
+    ble.addService(battService);
+    ble.updateCharacteristicValue(battLevel.getHandle(), (uint8_t *)&batt, sizeof(batt));
+
+    /* Add the Heart Rate service */
+    hrmService.addCharacteristic(hrmRate);
+    hrmService.addCharacteristic(hrmLocation);
+    ble.addService(hrmService);
     /* Set the heart rate monitor location (one time only) */
     /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.body_sensor_location.xml */
-    uint8_t location   = 0x03; /* Finger */
-    uint8_t hrmCounter = 100;
+    uint8_t location = 0x03; /* Finger */
     ble.updateCharacteristicValue(hrmLocation.getHandle(), (uint8_t *)&location, sizeof(location));
 
-    /* Do blinky on LED1 while we're waiting for BLE events */
-    for (;; ) {
-        led1 = !led1;
-        wait(1);
-
-        /* Update battery level */
-        batt++;
-        if (batt > 100) {
-            batt = 72;
-        }
-        ble.updateCharacteristicValue(battLevel.getHandle(), (uint8_t *)&batt, sizeof(batt));
-
-        /* Update the HRM measurement */
-        /* First byte = 8-bit values, no extra info, Second byte = uint8_t HRM value */
-        /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
-        hrmCounter++;
-        if (hrmCounter == 175) {
-            hrmCounter = 100;
-        }
-        uint8_t bpm[2] = {0x00, hrmCounter};
-        ble.updateCharacteristicValue(hrmRate.getHandle(), bpm, sizeof(bpm));
+    while (true) {
+        ble.waitForEvent();
     }
 }
