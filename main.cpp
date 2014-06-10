@@ -103,6 +103,10 @@ void updatesDisabledCallback(uint16_t charHandle)
     }
 }
 
+/**
+ * Runs once a second in interrupt context triggered by the 'ticker'; updates
+ * battery level and hrmCounter if there is a connection.
+ */
 void periodicCallback(void)
 {
     led1 = !led1; /* Do blinky on LED1 while we're waiting for BLE events */
@@ -128,11 +132,6 @@ void periodicCallback(void)
     }
 }
 
-/**************************************************************************/
-/*!
-    @brief  Program entry point
-*/
-/**************************************************************************/
 int main(void)
 {
     led1 = 1;
@@ -146,7 +145,6 @@ int main(void)
     ble.onUpdatesEnabled(updatesEnabledCallback);
     ble.onUpdatesDisabled(updatesDisabledCallback);
 
-    /* Initialise the nRF51822 */
     DEBUG("Initialising the nRF51822\n\r");
     ble.init();
 
