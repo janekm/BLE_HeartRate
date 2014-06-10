@@ -15,9 +15,9 @@
  */
 
 #include "mbed.h"
-#include "nRF51822n.h"
+#include "BLEPeripheral.h"
 
-nRF51822n  nrf;                 /* BLE radio driver */
+BLEPeripheral  ble;                 /* BLE radio driver */
 
 DigitalOut led1(LED1);
 DigitalOut led2(LED2);
@@ -26,105 +26,76 @@ Serial     pc(USBTX, USBRX);
 
 /* Battery Level Service */
 uint8_t            batt      = 72; /* Battery level */
-uint8_t            read_batt = 0; /* Variable to hold battery level reads */
+uint8_t            read_batt = 0;  /* Variable to hold battery level reads */
 GattService        battService (GattService::UUID_BATTERY_SERVICE);
 GattCharacteristic battLevel   (GattCharacteristic::UUID_BATTERY_LEVEL_CHAR,
-                                1,
-                                1,
-                                GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY |
-                                GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
+                                1, /* initialLen */
+                                1, /* maxLen */
+                                GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY | GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 
 /* Heart Rate Service */
 /* Service:  https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.heart_rate.xml */
 /* HRM Char: https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
 /* Location: https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.body_sensor_location.xml */
 GattService        hrmService    (GattService::UUID_HEART_RATE_SERVICE);
-GattCharacteristic hrmRate       (
-    GattCharacteristic::UUID_HEART_RATE_MEASUREMENT_CHAR,
-    2,
-    3,
-    GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
-GattCharacteristic hrmLocation   (
-    GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR,
-    1,
-    1,
-    GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
+GattCharacteristic hrmRate       (GattCharacteristic::UUID_HEART_RATE_MEASUREMENT_CHAR,
+                                  2, /* initialLen */
+                                  3, /* maxLen */
+                                  GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
+GattCharacteristic hrmLocation   (GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR,
+                                  1, /* initialLen */
+                                  1, /* maxLen */
+                                  GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 
 /* Device Information service */
 uint8_t deviceName[4] = {'m', 'b', 'e', 'd'};
-GattService        deviceInformationService (
-    GattService::UUID_DEVICE_INFORMATION_SERVICE);
+GattService        deviceInformationService (GattService::UUID_DEVICE_INFORMATION_SERVICE);
 GattCharacteristic deviceManufacturer (
     GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR,
-    sizeof(deviceName),
-    sizeof(deviceName),
+    sizeof(deviceName), /* initialLen */
+    sizeof(deviceName), /* maxLen */
     GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 
-/* Advertising data and parameters */
-GapAdvertisingData advData;
-GapAdvertisingData scanResponse;
-GapAdvertisingParams advParams (GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
-uint16_t           uuid16_list[] = {GattService::UUID_BATTERY_SERVICE,
-                                    GattService::UUID_DEVICE_INFORMATION_SERVICE,
-                                    GattService::UUID_HEART_RATE_SERVICE};
+static const uint16_t uuid16_list[] = {
+    GattService::UUID_BATTERY_SERVICE,
+    GattService::UUID_DEVICE_INFORMATION_SERVICE,
+    GattService::UUID_HEART_RATE_SERVICE
+};
 
 void tickerCallback(void);
 
-/**************************************************************************/
-/*!
-    @brief  This custom class can be used to override any GapEvents
-            that you are interested in handling on an application level.
-*/
-/**************************************************************************/
-class GapEventHandler : public GapEvents
+void timeoutCallback(void)
 {
-    virtual void onTimeout(void)
-    {
-        pc.printf("Advertising Timeout!\n\r");
-        // Restart the advertising process with a much slower interval,
-        // only start advertising again after a button press, etc.
-    }
+    pc.printf("Advertising Timeout!\n\r");
+    // Restart the advertising process with a much slower interval,
+    // only start advertising again after a button press, etc.
+}
 
-    virtual void onConnected(void)
-    {
-        pc.printf("Connected!\n\r");
-    }
-
-    virtual void onDisconnected(void)
-    {
-        pc.printf("Disconnected!\n\r");
-        pc.printf("Restarting the advertising process\n\r");
-        nrf.getGap().startAdvertising(advParams);
-    }
-};
-
-/**************************************************************************/
-/*!
-    @brief  This custom class can be used to override any GattServerEvents
-            that you are interested in handling on an application level.
-*/
-/**************************************************************************/
-class GattServerEventHandler : public GattServerEvents
+void connectionCallback(void)
 {
-    //virtual void onDataSent(uint16_t charHandle) {}
-    //virtual void onDataWritten(uint16_t charHandle) {}
+    pc.printf("Connected!\n\r");
+}
 
-    virtual void onUpdatesEnabled(uint16_t charHandle)
-    {
-        if (charHandle == hrmRate.getHandle()) {
-            pc.printf("Heart rate notify enabled\n\r");
-        }
+void disconnectionCallback(void)
+{
+    pc.printf("Disconnected!\n\r");
+    pc.printf("Restarting the advertising process\n\r");
+    ble.startAdvertising();
+}
+
+void updatesEnabledCallback(uint16_t charHandle)
+{
+    if (charHandle == hrmRate.getHandle()) {
+        pc.printf("Heart rate notify enabled\n\r");
     }
+}
 
-    virtual void onUpdatesDisabled(uint16_t charHandle)
-    {
-        if (charHandle == hrmRate.getHandle()) {
-            pc.printf("Heart rate notify disabled\n\r");
-        }
+void updatesDisabledCallback(uint16_t charHandle)
+{
+    if (charHandle == hrmRate.getHandle()) {
+        pc.printf("Heart rate notify disabled\n\r");
     }
-
-    //virtual void onConfirmationReceived(uint16_t charHandle) {}
-};
+}
 
 /**************************************************************************/
 /*!
@@ -139,61 +110,56 @@ int main(void)
     flipper.attach(&tickerCallback, 1.0);
 
     /* Setup the local GAP/GATT event handlers */
-    nrf.getGap().setEventHandler(new GapEventHandler());
-    nrf.getGattServer().setEventHandler(new GattServerEventHandler());
+    ble.onTimeout(timeoutCallback);
+    ble.onConnection(connectionCallback);
+    ble.onDisconnection(disconnectionCallback);
+    ble.onUpdatesEnabled(updatesEnabledCallback);
+    ble.onUpdatesDisabled(updatesDisabledCallback);
 
     /* Initialise the nRF51822 */
     pc.printf("Initialising the nRF51822\n\r");
-    nrf.init();
-
-    /* Make sure we get a clean start */
-    nrf.reset();
+    ble.init();
 
     /* Add BLE-Only flag and complete service list to the advertising data */
-    advData.addFlags(GapAdvertisingData::BREDR_NOT_SUPPORTED);
-    advData.addData(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS,
-                    (uint8_t *)uuid16_list, sizeof(uuid16_list));
-    advData.addAppearance(GapAdvertisingData::HEART_RATE_SENSOR_HEART_RATE_BELT);
-    nrf.getGap().setAdvertisingData(advData, scanResponse);
+    ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED);
+    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t *)uuid16_list, sizeof(uuid16_list));
+    ble.accumulateAdvertisingPayload(GapAdvertisingData::HEART_RATE_SENSOR_HEART_RATE_BELT);
 
     /* Add the Battery Level service */
     battService.addCharacteristic(battLevel);
-    nrf.getGattServer().addService(battService);
+    ble.addService(battService);
 
     /* Add the Device Information service */
     deviceInformationService.addCharacteristic(deviceManufacturer);
-    nrf.getGattServer().addService(deviceInformationService);
+    ble.addService(deviceInformationService);
 
     /* Add the Heart Rate service */
     hrmService.addCharacteristic(hrmRate);
     hrmService.addCharacteristic(hrmLocation);
-    nrf.getGattServer().addService(hrmService);
+    ble.addService(hrmService);
 
-    /* Start advertising (make sure you've added all your data first) */
-    nrf.getGap().startAdvertising(advParams);
+    ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
+    ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
+    ble.startAdvertising();
 
     /* Wait until we are connected to a central device before updating
      * anything */
     pc.printf("Waiting for a connection ...");
-    while (!nrf.getGap().state.connected) {
+    while (!ble.getGapState().connected) {
+        ble.waitForEvent();
     }
     pc.printf("Connected!\n\r");
 
-    /* Now that we're live, update the battery level characteristic, and */
-    /* change the device manufacturer characteristic to 'mbed' */
-    nrf.getGattServer().updateValue(battLevel.getHandle(), (uint8_t *)&batt,
-                                    sizeof(batt));
-    nrf.getGattServer().updateValue(deviceManufacturer.getHandle(),
-                                    deviceName,
-                                    sizeof(deviceName));
+    /* Now that we're live, update the battery level characteristic, and
+     * change the device manufacturer characteristic to 'mbed' */
+    ble.updateCharacteristicValue(battLevel.getHandle(), (uint8_t *)&batt, sizeof(batt));
+    ble.updateCharacteristicValue(deviceManufacturer.getHandle(), deviceName, sizeof(deviceName));
 
     /* Set the heart rate monitor location (one time only) */
     /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.body_sensor_location.xml */
-    uint8_t location = 0x03; /* Finger */
+    uint8_t location   = 0x03; /* Finger */
     uint8_t hrmCounter = 100;
-    nrf.getGattServer().updateValue(hrmLocation.getHandle(),
-                                    (uint8_t *)&location,
-                                    sizeof(location));
+    ble.updateCharacteristicValue(hrmLocation.getHandle(), (uint8_t *)&location, sizeof(location));
 
     /* Do blinky on LED1 while we're waiting for BLE events */
     for (;; ) {
@@ -205,19 +171,17 @@ int main(void)
         if (batt > 100) {
             batt = 72;
         }
-        nrf.getGattServer().updateValue(battLevel.getHandle(),
-                                        (uint8_t *)&batt,
-                                        sizeof(batt));
+        ble.updateCharacteristicValue(battLevel.getHandle(), (uint8_t *)&batt, sizeof(batt));
 
-      /* Update the HRM measurement */
-      /* First byte = 8-bit values, no extra info, Second byte = uint8_t HRM value */
-      /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
+        /* Update the HRM measurement */
+        /* First byte = 8-bit values, no extra info, Second byte = uint8_t HRM value */
+        /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
         hrmCounter++;
         if (hrmCounter == 175) {
             hrmCounter = 100;
         }
         uint8_t bpm[2] = {0x00, hrmCounter};
-        nrf.getGattServer().updateValue(hrmRate.getHandle(), bpm, sizeof(bpm));
+        ble.updateCharacteristicValue(hrmRate.getHandle(), bpm, sizeof(bpm));
     }
 }
 
