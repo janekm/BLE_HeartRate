@@ -138,6 +138,9 @@ int main(void)
     Ticker ticker;
     ticker.attach(periodicCallback, 1);
 
+    DEBUG("Initialising the nRF51822\n\r");
+    ble.init();
+
     /* Setup the local GAP/GATT event handlers */
     ble.onTimeout(timeoutCallback);
     ble.onConnection(connectionCallback);
@@ -145,13 +148,10 @@ int main(void)
     ble.onUpdatesEnabled(updatesEnabledCallback);
     ble.onUpdatesDisabled(updatesDisabledCallback);
 
-    DEBUG("Initialising the nRF51822\n\r");
-    ble.init();
-
+    /* setup advertising */
     ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED);
     ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t *)uuid16_list, sizeof(uuid16_list));
     ble.accumulateAdvertisingPayload(GapAdvertisingData::HEART_RATE_SENSOR_HEART_RATE_BELT);
-
     ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
     ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
     ble.startAdvertising();
