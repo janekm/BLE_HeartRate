@@ -15,9 +15,9 @@
  */
 
 #include "mbed.h"
-#include "BLEPeripheral.h"
+#include "BLEDevice.h"
 
-BLEPeripheral  ble;                 /* BLE radio driver */
+BLEDevice  ble;
 
 DigitalOut led1(LED1);
 
