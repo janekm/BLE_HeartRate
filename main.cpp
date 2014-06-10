@@ -20,7 +20,17 @@
 BLEPeripheral  ble;                 /* BLE radio driver */
 
 DigitalOut led1(LED1);
-Serial     pc(USBTX, USBRX);
+
+#define NEED_CONSOLE_OUTPUT 0 /* Set this if you need debug messages on the console;
+                               * it will have an impact on code-size and power
+                               * consumption. */
+
+#if NEED_CONSOLE_OUTPUT
+Serial  pc(USBTX, USBRX);
+#define DEBUG(...) { pc.printf(__VA_ARGS__); }
+#else
+#define DEBUG(...) /* nothing */
+#endif /* #if NEED_CONSOLE_OUTPUT */
 
 /* Battery Level Service */
 uint8_t            batt      = 72; /* Battery level */
@@ -62,34 +72,34 @@ static const uint16_t uuid16_list[] = {
 
 void timeoutCallback(void)
 {
-    pc.printf("Advertising Timeout!\n\r");
+    DEBUG("Advertising Timeout!\n\r");
     // Restart the advertising process with a much slower interval,
     // only start advertising again after a button press, etc.
 }
 
 void connectionCallback(void)
 {
-    pc.printf("Connected!\n\r");
+    DEBUG("Connected!\n\r");
 }
 
 void disconnectionCallback(void)
 {
-    pc.printf("Disconnected!\n\r");
-    pc.printf("Restarting the advertising process\n\r");
+    DEBUG("Disconnected!\n\r");
+    DEBUG("Restarting the advertising process\n\r");
     ble.startAdvertising();
 }
 
 void updatesEnabledCallback(uint16_t charHandle)
 {
     if (charHandle == hrmRate.getHandle()) {
-        pc.printf("Heart rate notify enabled\n\r");
+        DEBUG("Heart rate notify enabled\n\r");
     }
 }
 
 void updatesDisabledCallback(uint16_t charHandle)
 {
     if (charHandle == hrmRate.getHandle()) {
-        pc.printf("Heart rate notify disabled\n\r");
+        DEBUG("Heart rate notify disabled\n\r");
     }
 }
 
@@ -110,7 +120,7 @@ int main(void)
     ble.onUpdatesDisabled(updatesDisabledCallback);
 
     /* Initialise the nRF51822 */
-    pc.printf("Initialising the nRF51822\n\r");
+    DEBUG("Initialising the nRF51822\n\r");
     ble.init();
 
     /* Add BLE-Only flag and complete service list to the advertising data */
@@ -135,13 +145,11 @@ int main(void)
     ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
     ble.startAdvertising();
 
-    /* Wait until we are connected to a central device before updating
-     * anything */
-    pc.printf("Waiting for a connection ...");
+    /* Wait until we are connected to a central device before updating anything */
+    DEBUG("Waiting for a connection ...");
     while (!ble.getGapState().connected) {
         ble.waitForEvent();
     }
-    pc.printf("Connected!\n\r");
 
     /* Now that we're live, update the battery level characteristic, and
      * change the device manufacturer characteristic to 'mbed' */
