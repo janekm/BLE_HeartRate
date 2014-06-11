@@ -34,23 +34,29 @@ Serial  pc(USBTX, USBRX);
 
 /* Battery Level Service */
 uint8_t            batt      = 72; /* Battery level */
-GattService        battService (GattService::UUID_BATTERY_SERVICE);
-GattCharacteristic battLevel   (GattCharacteristic::UUID_BATTERY_LEVEL_CHAR, 1, 1,
+GattCharacteristic battLevel   (GattCharacteristic::UUID_BATTERY_LEVEL_CHAR, &batt, sizeof(batt), sizeof(batt),
                                 GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY | GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
+GattService        battService (GattService::UUID_BATTERY_SERVICE);
 
 /* Heart Rate Service */
 /* Service:  https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.heart_rate.xml */
 /* HRM Char: https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
 /* Location: https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.body_sensor_location.xml */
+static uint8_t hrmCounter = 100;
+static uint8_t bpm[2] = {0x00, hrmCounter};
+GattCharacteristic hrmRate(GattCharacteristic::UUID_HEART_RATE_MEASUREMENT_CHAR, bpm, sizeof(bpm), sizeof(bpm), GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
+static const uint8_t location = 0x03; /* Finger */
+GattCharacteristic hrmLocation(GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR,
+                               (uint8_t *)&location, sizeof(location), sizeof(location),
+                               GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 GattService        hrmService(GattService::UUID_HEART_RATE_SERVICE);
-GattCharacteristic hrmRate(GattCharacteristic::UUID_HEART_RATE_MEASUREMENT_CHAR, 2, 3, GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
-GattCharacteristic hrmLocation(GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR, 1, 1, GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 
 /* Device Information service */
 static const uint8_t deviceName[] = {'m', 'b', 'e', 'd'};
-GattService        deviceInformationService (GattService::UUID_DEVICE_INFORMATION_SERVICE);
 GattCharacteristic deviceManufacturer (GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR,
-                                       sizeof(deviceName), sizeof(deviceName), GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
+                                       (uint8_t *)deviceName, sizeof(deviceName), sizeof(deviceName),
+                                       GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
+GattService        deviceInformationService (GattService::UUID_DEVICE_INFORMATION_SERVICE);
 
 static const uint16_t uuid16_list[] = {
     GattService::UUID_BATTERY_SERVICE,
@@ -110,12 +116,11 @@ void periodicCallback(void)
         /* Update the HRM measurement */
         /* First byte = 8-bit values, no extra info, Second byte = uint8_t HRM value */
         /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
-        static uint8_t hrmCounter = 100;
         hrmCounter++;
         if (hrmCounter == 175) {
             hrmCounter = 100;
         }
-        uint8_t bpm[2] = {0x00, hrmCounter};
+        bpm[1] = hrmCounter;
         ble.updateCharacteristicValue(hrmRate.getHandle(), bpm, sizeof(bpm));
     }
 }
@@ -147,21 +152,15 @@ int main(void)
     /* Add the Device Information service */
     deviceInformationService.addCharacteristic(deviceManufacturer);
     ble.addService(deviceInformationService);
-    ble.updateCharacteristicValue(deviceManufacturer.getHandle(), deviceName, sizeof(deviceName));
 
     /* Add the Battery Level service */
     battService.addCharacteristic(battLevel);
     ble.addService(battService);
-    ble.updateCharacteristicValue(battLevel.getHandle(), (uint8_t *)&batt, sizeof(batt));
 
     /* Add the Heart Rate service */
     hrmService.addCharacteristic(hrmRate);
     hrmService.addCharacteristic(hrmLocation);
     ble.addService(hrmService);
-    /* Set the heart rate monitor location (one time only) */
-    /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.body_sensor_location.xml */
-    uint8_t location = 0x03; /* Finger */
-    ble.updateCharacteristicValue(hrmLocation.getHandle(), (uint8_t *)&location, sizeof(location));
 
     while (true) {
         ble.waitForEvent();
