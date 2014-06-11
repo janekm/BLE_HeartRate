@@ -36,33 +36,22 @@ Serial  pc(USBTX, USBRX);
 uint8_t            batt      = 72; /* Battery level */
 uint8_t            read_batt = 0;  /* Variable to hold battery level reads */
 GattService        battService (GattService::UUID_BATTERY_SERVICE);
-GattCharacteristic battLevel   (GattCharacteristic::UUID_BATTERY_LEVEL_CHAR,
-                                1, /* initialLen */
-                                1, /* maxLen */
+GattCharacteristic battLevel   (GattCharacteristic::UUID_BATTERY_LEVEL_CHAR, 1, 1,
                                 GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY | GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 
 /* Heart Rate Service */
 /* Service:  https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.heart_rate.xml */
 /* HRM Char: https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
 /* Location: https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.body_sensor_location.xml */
-GattService        hrmService    (GattService::UUID_HEART_RATE_SERVICE);
-GattCharacteristic hrmRate       (GattCharacteristic::UUID_HEART_RATE_MEASUREMENT_CHAR,
-                                  2, /* initialLen */
-                                  3, /* maxLen */
-                                  GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
-GattCharacteristic hrmLocation   (GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR,
-                                  1, /* initialLen */
-                                  1, /* maxLen */
-                                  GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
+GattService        hrmService(GattService::UUID_HEART_RATE_SERVICE);
+GattCharacteristic hrmRate(GattCharacteristic::UUID_HEART_RATE_MEASUREMENT_CHAR, 2, 3, GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
+GattCharacteristic hrmLocation(GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR, 1, 1, GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 
 /* Device Information service */
 static const uint8_t deviceName[] = {'m', 'b', 'e', 'd'};
 GattService        deviceInformationService (GattService::UUID_DEVICE_INFORMATION_SERVICE);
-GattCharacteristic deviceManufacturer (
-    GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR,
-    sizeof(deviceName), /* initialLen */
-    sizeof(deviceName), /* maxLen */
-    GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
+GattCharacteristic deviceManufacturer (GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR,
+                                       sizeof(deviceName), sizeof(deviceName), GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 
 static const uint16_t uuid16_list[] = {
     GattService::UUID_BATTERY_SERVICE,
