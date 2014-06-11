@@ -47,7 +47,8 @@ GattService        battService (GattService::UUID_BATTERY_SERVICE, battChars, si
 /* Location: https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.body_sensor_location.xml */
 static uint8_t hrmCounter = 100;
 static uint8_t bpm[2] = {0x00, hrmCounter};
-GattCharacteristic hrmRate(GattCharacteristic::UUID_HEART_RATE_MEASUREMENT_CHAR, bpm, sizeof(bpm), sizeof(bpm), GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
+GattCharacteristic hrmRate(GattCharacteristic::UUID_HEART_RATE_MEASUREMENT_CHAR, bpm, sizeof(bpm), sizeof(bpm),
+                           GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
 static const uint8_t location = 0x03; /* Finger */
 GattCharacteristic hrmLocation(GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR,
                                (uint8_t *)&location, sizeof(location), sizeof(location),
@@ -74,37 +75,11 @@ static const uint16_t uuid16_list[] = {
     GattService::UUID_HEART_RATE_SERVICE
 };
 
-void timeoutCallback(void)
-{
-    DEBUG("Advertising Timeout!\n\r");
-    // Restart the advertising process with a much slower interval,
-    // only start advertising again after a button press, etc.
-}
-
-void connectionCallback(void)
-{
-    DEBUG("Connected!\n\r");
-}
-
 void disconnectionCallback(void)
 {
     DEBUG("Disconnected!\n\r");
     DEBUG("Restarting the advertising process\n\r");
     ble.startAdvertising();
-}
-
-void updatesEnabledCallback(uint16_t charHandle)
-{
-    if (charHandle == hrmRate.getHandle()) {
-        DEBUG("Heart rate notify enabled\n\r");
-    }
-}
-
-void updatesDisabledCallback(uint16_t charHandle)
-{
-    if (charHandle == hrmRate.getHandle()) {
-        DEBUG("Heart rate notify disabled\n\r");
-    }
 }
 
 /**
@@ -145,11 +120,7 @@ int main(void)
     ble.init();
 
     /* Setup the local GAP/GATT event handlers */
-    ble.onTimeout(timeoutCallback);
-    ble.onConnection(connectionCallback);
     ble.onDisconnection(disconnectionCallback);
-    ble.onUpdatesEnabled(updatesEnabledCallback);
-    ble.onUpdatesDisabled(updatesDisabledCallback);
 
     /* setup advertising */
     ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED);
