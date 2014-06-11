@@ -34,7 +34,6 @@ Serial  pc(USBTX, USBRX);
 
 /* Battery Level Service */
 uint8_t            batt      = 72; /* Battery level */
-uint8_t            read_batt = 0;  /* Variable to hold battery level reads */
 GattService        battService (GattService::UUID_BATTERY_SERVICE);
 GattCharacteristic battLevel   (GattCharacteristic::UUID_BATTERY_LEVEL_CHAR, 1, 1,
                                 GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY | GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
