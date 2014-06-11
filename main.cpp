@@ -36,7 +36,10 @@ Serial  pc(USBTX, USBRX);
 uint8_t            batt      = 72; /* Battery level */
 GattCharacteristic battLevel   (GattCharacteristic::UUID_BATTERY_LEVEL_CHAR, &batt, sizeof(batt), sizeof(batt),
                                 GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY | GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
-GattService        battService (GattService::UUID_BATTERY_SERVICE);
+GattCharacteristic *battChars[] = {
+    &battLevel,
+};
+GattService        battService (GattService::UUID_BATTERY_SERVICE, battChars, sizeof(battChars) / sizeof(GattCharacteristic *));
 
 /* Heart Rate Service */
 /* Service:  https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.heart_rate.xml */
@@ -49,14 +52,21 @@ static const uint8_t location = 0x03; /* Finger */
 GattCharacteristic hrmLocation(GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR,
                                (uint8_t *)&location, sizeof(location), sizeof(location),
                                GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
-GattService        hrmService(GattService::UUID_HEART_RATE_SERVICE);
+GattCharacteristic *hrmChars[] = {
+    &hrmRate, &hrmLocation,
+};
+GattService        hrmService(GattService::UUID_HEART_RATE_SERVICE, hrmChars, sizeof(hrmChars) / sizeof(GattCharacteristic *));
 
 /* Device Information service */
 static const uint8_t deviceName[] = {'m', 'b', 'e', 'd'};
 GattCharacteristic deviceManufacturer (GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR,
                                        (uint8_t *)deviceName, sizeof(deviceName), sizeof(deviceName),
                                        GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
-GattService        deviceInformationService (GattService::UUID_DEVICE_INFORMATION_SERVICE);
+GattCharacteristic *devInfoChars[] = {
+    &deviceManufacturer,
+};
+GattService        deviceInformationService (GattService::UUID_DEVICE_INFORMATION_SERVICE,
+                                             devInfoChars, sizeof(devInfoChars) / sizeof(GattCharacteristic *));
 
 static const uint16_t uuid16_list[] = {
     GattService::UUID_BATTERY_SERVICE,
@@ -149,17 +159,8 @@ int main(void)
     ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
     ble.startAdvertising();
 
-    /* Add the Device Information service */
-    deviceInformationService.addCharacteristic(deviceManufacturer);
     ble.addService(deviceInformationService);
-
-    /* Add the Battery Level service */
-    battService.addCharacteristic(battLevel);
     ble.addService(battService);
-
-    /* Add the Heart Rate service */
-    hrmService.addCharacteristic(hrmRate);
-    hrmService.addCharacteristic(hrmLocation);
     ble.addService(hrmService);
 
     while (true) {
