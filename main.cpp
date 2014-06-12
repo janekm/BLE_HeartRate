@@ -18,12 +18,10 @@
 #include "BLEDevice.h"
 
 BLEDevice  ble;
-
 DigitalOut led1(LED1);
 
 #define NEED_CONSOLE_OUTPUT 0 /* Set this if you need debug messages on the console;
-                               * it will have an impact on code-size and power
-                               * consumption. */
+                               * it will have an impact on code-size and power consumption. */
 
 #if NEED_CONSOLE_OUTPUT
 Serial  pc(USBTX, USBRX);
@@ -31,15 +29,6 @@ Serial  pc(USBTX, USBRX);
 #else
 #define DEBUG(...) /* nothing */
 #endif /* #if NEED_CONSOLE_OUTPUT */
-
-/* Battery Level Service */
-uint8_t            batt      = 72; /* Battery level */
-GattCharacteristic battLevel   (GattCharacteristic::UUID_BATTERY_LEVEL_CHAR, &batt, sizeof(batt), sizeof(batt),
-                                GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY | GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
-GattCharacteristic *battChars[] = {
-    &battLevel,
-};
-GattService        battService (GattService::UUID_BATTERY_SERVICE, battChars, sizeof(battChars) / sizeof(GattCharacteristic *));
 
 /* Heart Rate Service */
 /* Service:  https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.heart_rate.xml */
@@ -53,27 +42,8 @@ static const uint8_t location = 0x03; /* Finger */
 GattCharacteristic hrmLocation(GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR,
                                (uint8_t *)&location, sizeof(location), sizeof(location),
                                GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
-GattCharacteristic *hrmChars[] = {
-    &hrmRate, &hrmLocation,
-};
+GattCharacteristic *hrmChars[] = {&hrmRate, &hrmLocation, };
 GattService        hrmService(GattService::UUID_HEART_RATE_SERVICE, hrmChars, sizeof(hrmChars) / sizeof(GattCharacteristic *));
-
-/* Device Information service */
-static const uint8_t deviceName[] = {'m', 'b', 'e', 'd'};
-GattCharacteristic deviceManufacturer (GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR,
-                                       (uint8_t *)deviceName, sizeof(deviceName), sizeof(deviceName),
-                                       GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
-GattCharacteristic *devInfoChars[] = {
-    &deviceManufacturer,
-};
-GattService        deviceInformationService (GattService::UUID_DEVICE_INFORMATION_SERVICE,
-                                             devInfoChars, sizeof(devInfoChars) / sizeof(GattCharacteristic *));
-
-static const uint16_t uuid16_list[] = {
-    GattService::UUID_BATTERY_SERVICE,
-    GattService::UUID_DEVICE_INFORMATION_SERVICE,
-    GattService::UUID_HEART_RATE_SERVICE
-};
 
 void disconnectionCallback(void)
 {
@@ -83,21 +53,13 @@ void disconnectionCallback(void)
 }
 
 /**
- * Runs once a second in interrupt context triggered by the 'ticker'; updates
- * battery level and hrmCounter if there is a connection.
+ * Triggered periodically by the 'ticker' interrupt; updates hrmCounter.
  */
 void periodicCallback(void)
 {
     led1 = !led1; /* Do blinky on LED1 while we're waiting for BLE events */
 
     if (ble.getGapState().connected) {
-        /* Update battery level */
-        batt++;
-        if (batt > 100) {
-            batt = 72;
-        }
-        ble.updateCharacteristicValue(battLevel.getHandle(), (uint8_t *)&batt, sizeof(batt));
-
         /* Update the HRM measurement */
         /* First byte = 8-bit values, no extra info, Second byte = uint8_t HRM value */
         /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
@@ -118,20 +80,15 @@ int main(void)
 
     DEBUG("Initialising the nRF51822\n\r");
     ble.init();
-
-    /* Setup the local GAP/GATT event handlers */
     ble.onDisconnection(disconnectionCallback);
 
     /* setup advertising */
     ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED);
-    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t *)uuid16_list, sizeof(uuid16_list));
     ble.accumulateAdvertisingPayload(GapAdvertisingData::HEART_RATE_SENSOR_HEART_RATE_BELT);
     ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
     ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
     ble.startAdvertising();
 
-    ble.addService(deviceInformationService);
-    ble.addService(battService);
     ble.addService(hrmService);
 
     while (true) {
