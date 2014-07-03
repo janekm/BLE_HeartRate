@@ -53,6 +53,8 @@ GattCharacteristic hrmLocation(GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHA
 GattCharacteristic *hrmChars[] = {&hrmRate, &hrmLocation, };
 GattService        hrmService(GattService::UUID_HEART_RATE_SERVICE, hrmChars, sizeof(hrmChars) / sizeof(GattCharacteristic *));
 
+static const uint16_t uuid16_list[] = {GattService::UUID_DEVICE_INFORMATION_SERVICE, GattService::UUID_HEART_RATE_SERVICE};
+
 void disconnectionCallback(void)
 {
     DEBUG("Disconnected!\n\r");
@@ -92,6 +94,7 @@ int main(void)
 
     /* setup advertising */
     ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED);
+    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t*)uuid16_list, sizeof(uuid16_list));
     ble.accumulateAdvertisingPayload(GapAdvertisingData::HEART_RATE_SENSOR_HEART_RATE_BELT);
     ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
     ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
