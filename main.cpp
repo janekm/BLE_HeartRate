@@ -30,6 +30,14 @@ Serial  pc(USBTX, USBRX);
 #define DEBUG(...) /* nothing */
 #endif /* #if NEED_CONSOLE_OUTPUT */
 
+/* Device Information service */
+const char         deviceName[] = { 'm', 'b', 'e', 'd' };
+GattCharacteristic deviceManufacturer(GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR, (uint8_t *)deviceName, sizeof(deviceName), sizeof(deviceName),
+                                      GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
+GattCharacteristic *deviceInformationChars[] = {&deviceManufacturer};
+GattService        deviceInformationService(GattService::UUID_DEVICE_INFORMATION_SERVICE, deviceInformationChars,
+                                            sizeof(deviceInformationChars) / sizeof(GattCharacteristic *));
+
 /* Heart Rate Service */
 /* Service:  https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.heart_rate.xml */
 /* HRM Char: https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
@@ -89,6 +97,7 @@ int main(void)
     ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
     ble.startAdvertising();
 
+    ble.addService(deviceInformationService);
     ble.addService(hrmService);
 
     while (true) {
