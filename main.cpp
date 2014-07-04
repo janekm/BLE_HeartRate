@@ -30,6 +30,13 @@ Serial  pc(USBTX, USBRX);
 #define DEBUG(...) /* nothing */
 #endif /* #if NEED_CONSOLE_OUTPUT */
 
+/* Battery Level Service */
+static const uint8_t batt = 72;     /* Battery level */
+GattCharacteristic battLevel(GattCharacteristic::UUID_BATTERY_LEVEL_CHAR, (uint8_t *)&batt, sizeof(uint8_t), sizeof(uint8_t),
+                             GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
+GattCharacteristic *battLevelChars[] = {&battLevel};
+GattService        battService(GattService::UUID_BATTERY_SERVICE, battLevelChars, sizeof(battLevelChars) / sizeof(GattCharacteristic *));
+
 /* Device Information service */
 const char         deviceName[] = { 'm', 'b', 'e', 'd' };
 GattCharacteristic deviceManufacturer(GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR, (uint8_t *)deviceName, sizeof(deviceName), sizeof(deviceName),
@@ -53,7 +60,7 @@ GattCharacteristic hrmLocation(GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHA
 GattCharacteristic *hrmChars[] = {&hrmRate, &hrmLocation, };
 GattService        hrmService(GattService::UUID_HEART_RATE_SERVICE, hrmChars, sizeof(hrmChars) / sizeof(GattCharacteristic *));
 
-static const uint16_t uuid16_list[] = {GattService::UUID_DEVICE_INFORMATION_SERVICE, GattService::UUID_HEART_RATE_SERVICE};
+static const uint16_t uuid16_list[] = {GattService::UUID_BATTERY_SERVICE, GattService::UUID_DEVICE_INFORMATION_SERVICE, GattService::UUID_HEART_RATE_SERVICE};
 
 void disconnectionCallback(void)
 {
@@ -100,6 +107,7 @@ int main(void)
     ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
     ble.startAdvertising();
 
+    ble.addService(battService);
     ble.addService(deviceInformationService);
     ble.addService(hrmService);
 
