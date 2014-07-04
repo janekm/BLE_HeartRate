@@ -38,8 +38,8 @@ GattCharacteristic *battLevelChars[] = {&battLevel};
 GattService        battService(GattService::UUID_BATTERY_SERVICE, battLevelChars, sizeof(battLevelChars) / sizeof(GattCharacteristic *));
 
 /* Device Information service */
-const char         deviceName[] = { 'm', 'b', 'e', 'd' };
-GattCharacteristic deviceManufacturer(GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR, (uint8_t *)deviceName, sizeof(deviceName), sizeof(deviceName),
+const static char  DEVICE_NAME[] = "Nordic_HRM";
+GattCharacteristic deviceManufacturer(GattCharacteristic::UUID_MANUFACTURER_NAME_STRING_CHAR, (uint8_t *)DEVICE_NAME, sizeof(DEVICE_NAME), sizeof(DEVICE_NAME),
                                       GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
 GattCharacteristic *deviceInformationChars[] = {&deviceManufacturer};
 GattService        deviceInformationService(GattService::UUID_DEVICE_INFORMATION_SERVICE, deviceInformationChars,
@@ -100,9 +100,10 @@ int main(void)
     ble.onDisconnection(disconnectionCallback);
 
     /* setup advertising */
-    ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED);
+    ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
     ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t*)uuid16_list, sizeof(uuid16_list));
     ble.accumulateAdvertisingPayload(GapAdvertisingData::HEART_RATE_SENSOR_HEART_RATE_BELT);
+    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LOCAL_NAME, (uint8_t *)DEVICE_NAME, sizeof(DEVICE_NAME));
     ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
     ble.setAdvertisingInterval(160); /* 100ms; in multiples of 0.625ms. */
     ble.startAdvertising();
