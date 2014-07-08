@@ -16,6 +16,7 @@
 
 #include "mbed.h"
 #include "BLEDevice.h"
+#include "ble_hrs.h"
 
 BLEDevice  ble;
 DigitalOut led1(LED1);
@@ -40,7 +41,7 @@ static uint8_t hrmCounter = 100;
 static uint8_t bpm[2] = {0x00, hrmCounter};
 GattCharacteristic hrmRate(GattCharacteristic::UUID_HEART_RATE_MEASUREMENT_CHAR, bpm, sizeof(bpm), sizeof(bpm),
                            GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY);
-static uint8_t location = 0x03; /* Finger */
+static uint8_t location = BLE_HRS_BODY_SENSOR_LOCATION_FINGER;
 GattCharacteristic hrmLocation(GattCharacteristic::UUID_BODY_SENSOR_LOCATION_CHAR,
                                (uint8_t *)&location, sizeof(location), sizeof(location),
                                GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ);
