@@ -50,6 +50,9 @@ GattService        hrmService(GattService::UUID_HEART_RATE_SERVICE, hrmChars, si
 
 static const uint16_t uuid16_list[] = {GattService::UUID_HEART_RATE_SERVICE};
 
+static volatile bool triggerSensorPolling = false; /* set to high periodically to indicate to the main thread that
+                                                    * polling is necessary. */
+
 void disconnectionCallback(Gap::Handle_t handle)
 {
     DEBUG("Disconnected handle %u!\n\r", handle);
@@ -58,23 +61,15 @@ void disconnectionCallback(Gap::Handle_t handle)
 }
 
 /**
- * Triggered periodically by the 'ticker' interrupt; updates hrmCounter.
+ * Triggered periodically by the 'ticker' interrupt.
  */
 void periodicCallback(void)
 {
     led1 = !led1; /* Do blinky on LED1 while we're waiting for BLE events */
-
-    if (ble.getGapState().connected) {
-        /* Update the HRM measurement */
-        /* First byte = 8-bit values, no extra info, Second byte = uint8_t HRM value */
-        /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
-        hrmCounter++;
-        if (hrmCounter == 175) {
-            hrmCounter = 100;
-        }
-        bpm[1] = hrmCounter;
-        ble.updateCharacteristicValue(hrmRate.getHandle(), bpm, sizeof(bpm));
-    }
+    triggerSensorPolling = true; /* Note that the periodicCallback() executes in
+                                  * interrupt context, so it is safer to do
+                                  * heavy-weight sensor polling from the main
+                                  * thread.*/
 }
 
 int main(void)
@@ -99,6 +94,24 @@ int main(void)
     ble.addService(hrmService);
 
     while (true) {
-        ble.waitForEvent();
+        if (triggerSensorPolling) {
+            triggerSensorPolling = false;
+
+            /* Do blocking calls or whatever is necessary for sensor polling. */
+            /* In our case, we simply update the dummy HRM measurement. */
+            hrmCounter++;
+            if (hrmCounter == 175) {
+                hrmCounter = 100;
+            }
+
+            if (ble.getGapState().connected) {
+                /* First byte = 8-bit values, no extra info, Second byte = uint8_t HRM value */
+                /* See --> https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml */
+                bpm[1] = hrmCounter;
+                ble.updateCharacteristicValue(hrmRate.getHandle(), bpm, sizeof(bpm));
+            }
+        } else {
+            ble.waitForEvent();
+        }
     }
 }
