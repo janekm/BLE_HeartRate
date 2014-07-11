@@ -52,12 +52,23 @@ static const uint16_t uuid16_list[] = {GattService::UUID_HEART_RATE_SERVICE};
 
 static volatile bool triggerSensorPolling = false; /* set to high periodically to indicate to the main thread that
                                                     * polling is necessary. */
+static Gap::ConnectionParams_t connectionParams;
 
 void disconnectionCallback(Gap::Handle_t handle)
 {
     DEBUG("Disconnected handle %u!\n\r", handle);
     DEBUG("Restarting the advertising process\n\r");
     ble.startAdvertising();
+}
+
+void onConnectionCallback(Gap::Handle_t handle)
+{
+    DEBUG("connected. Got handle %u\r\n", handle);
+
+    connectionParams.slaveLatency = 1;
+    if (ble.updateConnectionParams(handle, &connectionParams) != BLE_ERROR_NONE) {
+        DEBUG("failed to update connection paramter\r\n");
+    }
 }
 
 /**
@@ -81,6 +92,9 @@ int main(void)
     DEBUG("Initialising the nRF51822\n\r");
     ble.init();
     ble.onDisconnection(disconnectionCallback);
+    ble.onConnection(onConnectionCallback);
+
+    ble.getPreferredConnectionParams(&connectionParams);
 
     /* setup advertising */
     ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
