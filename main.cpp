@@ -50,9 +50,9 @@ GattService        hrmService(GattService::UUID_HEART_RATE_SERVICE, hrmChars, si
 
 static const uint16_t uuid16_list[] = {GattService::UUID_HEART_RATE_SERVICE};
 
-void disconnectionCallback(void)
+void disconnectionCallback(Gap::Handle_t handle)
 {
-    DEBUG("Disconnected!\n\r");
+    DEBUG("Disconnected handle %u!\n\r", handle);
     DEBUG("Restarting the advertising process\n\r");
     ble.startAdvertising();
 }
